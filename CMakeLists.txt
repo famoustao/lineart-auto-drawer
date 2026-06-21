@@ -9,13 +9,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(BUILD_WITH_X11 "Build Linux X11 mouse controller" ON)
-option(BUILD_WITH_WINAPI "Build Windows mouse controller" OFF)
+# 平台默认开关
+option(BUILD_WITH_X11 "Build Linux X11 mouse controller" ${UNIX})
+option(BUILD_WITH_WINAPI "Build Windows mouse controller" ${WIN32})
 
+# --- 依赖 --------------------------------------------------------------------
 find_package(OpenCV REQUIRED)
-find_package(PkgConfig QUIET)
 
+# 检测 potrace（Linux 通过 pkg-config，其他平台通过 find_path/find_library / VCPKG）
 set(HAVE_POTRACE OFF)
+find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(POTRACE QUIET potrace)
     if(POTRACE_FOUND)
@@ -24,7 +27,7 @@ if(PkgConfig_FOUND)
 endif()
 if(NOT HAVE_POTRACE)
     find_path(POTRACE_INCLUDE_DIR potracelib.h)
-    find_library(POTRACE_LIBRARY NAMES potrace)
+    find_library(POTRACE_LIBRARY NAMES potrace potracelib)
     if(POTRACE_INCLUDE_DIR AND POTRACE_LIBRARY)
         set(HAVE_POTRACE ON)
         set(POTRACE_INCLUDE_DIRS ${POTRACE_INCLUDE_DIR})
@@ -62,7 +65,7 @@ if(HAVE_POTRACE)
     target_compile_definitions(lineart_core PUBLIC HAVE_POTRACE=1)
     message(STATUS "libpotrace found: will use it for vectorization")
 else()
-    message(STATUS "libpotrace not found: falling back to built-in contour-based SVG exporter")
+    message(STATUS "libpotrace not found: falling back to built-in polyline SVG exporter")
 endif()
 
 if(UNIX AND BUILD_WITH_X11)
@@ -79,8 +82,13 @@ endif()
 
 if(WIN32 AND BUILD_WITH_WINAPI)
     target_compile_definitions(lineart_core PUBLIC WINDOWS_MOUSE=1)
+    target_link_libraries(lineart_core PUBLIC user32)
     message(STATUS "Windows mouse control enabled")
 endif()
 
 add_executable(lineart_drawer src/main.cpp)
 target_link_libraries(lineart_drawer PRIVATE lineart_core)
+if(WIN32)
+    set_target_properties(lineart_drawer PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endif()
