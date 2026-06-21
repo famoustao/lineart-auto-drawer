@@ -1,0 +1,16 @@
+build/
+build-*/
+cmake-build-*/
+.idea/
+.vscode/
+*.o
+*.a
+*.so
+*.obj
+*.lib
+*.exe
+.DS_Store
+*.swp
+third_party/
+output_svgs/
+*.log
